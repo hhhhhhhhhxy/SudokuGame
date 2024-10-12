@@ -5,13 +5,14 @@ using UnityEngine;
 public class SudokuGame : MonoBehaviour {
 
     // 游戏模型
-    private int[,] sudokuBoard = new int[9, 9]; // 数独棋盘
+    private int[,,] sudokuBoard = new int[9, 9, 2]; // 数独棋盘
     private bool gameOver = false; // 游戏是否结束
     private int difficulty = 1; // 游戏难度：1: 简单, 2: 中等, 3: 困难
     private bool selectingDifficulty = true; // 是否在选择难度
     private int selectedRow = -1; // 当前选中的行
     private int selectedCol = -1; // 当前选中的列
     private bool waitingForInput = false; // 是否在等待键盘输入
+    private string inputBuffer = ""; // 输入缓冲区
 
     // 系统处理器
     void Start () {
@@ -22,6 +23,7 @@ public class SudokuGame : MonoBehaviour {
     void OnGUI() {
         // 选择难度界面
         if (selectingDifficulty) {
+            GUI.BeginGroup(new Rect(0, 0, Screen.width, Screen.height));
             // 获取屏幕的宽度和高度
             int screenWidth = Screen.width;
             int screenHeight = Screen.height;
@@ -47,8 +49,11 @@ public class SudokuGame : MonoBehaviour {
                 selectingDifficulty = false; // 结束选择难度
                 Init(); // 初始化游戏
             }
+            GUI.EndGroup();
         } else {
             // 游戏界面
+            GUI.Box(new Rect(50, 25, 630, 630), ""); // 绘制游戏背景框
+            GUI.Box(new Rect(50, 25, 630, 630), ""); // 绘制游戏背景框
             GUI.Box(new Rect(50, 25, 630, 630), ""); // 绘制游戏背景框
             if (GUI.Button(new Rect(310, 670, 100, 30), "再来一次")) Init(); // 再来一次按钮
             if (GUI.Button(new Rect(50, 670, 100, 30), "返回主界面")) {
@@ -58,7 +63,7 @@ public class SudokuGame : MonoBehaviour {
             if (!gameOver) {
                 for (int i = 0; i < 9; i++) {
                     for (int j = 0; j < 9; j++) {
-                        if (sudokuBoard[i, j] == 0) {
+                        if (sudokuBoard[i, j, 0] == 0) {
                             // 如果格子为空，绘制按钮
                             if (GUI.Button(new Rect(50 + j * 70, 25 + i * 70, 70, 70), "")) {
                                 selectedRow = i;
@@ -67,7 +72,7 @@ public class SudokuGame : MonoBehaviour {
                             }
                         } else {
                             // 如果格子有数字，绘制按钮并显示数字
-                            GUI.Button(new Rect(50 + j * 70, 25 + i * 70, 70, 70), sudokuBoard[i, j].ToString());
+                            GUI.Button(new Rect(50 + j * 70, 25 + i * 70, 70, 70), sudokuBoard[i, j, 0].ToString());
                         }
                     }
                 }
@@ -79,7 +84,7 @@ public class SudokuGame : MonoBehaviour {
                     // 当鼠标按下时设置selectedRow和selectedCol
                     int row = Mathf.FloorToInt((mousePosition.y - 25) / 70);
                     int col = Mathf.FloorToInt((mousePosition.x - 50) / 70);
-                    if (row >= 0 && row < 9 && col >= 0 && col < 9) {
+                    if (sudokuBoard[row, col, 1] != 1 && row >= 0 && row < 9 && col >= 0 && col < 9) {
                         selectedRow = row;
                         selectedCol = col;
                         waitingForInput = true; // 设置等待键盘输入状态
@@ -98,7 +103,7 @@ public class SudokuGame : MonoBehaviour {
                         {
                             // 将数字写入数据
                             int number = int.Parse(c.ToString());
-                            sudokuBoard[selectedRow, selectedCol] = number; // 更新数独棋盘
+                            sudokuBoard[selectedRow, selectedCol, 0] = number; // 更新数独棋盘
                             selectedRow = -1; // 重置选中的行
                             selectedCol = -1; // 重置选中的列
                             waitingForInput = false; // 重置等待键盘输入状态
@@ -107,6 +112,15 @@ public class SudokuGame : MonoBehaviour {
                             if (CheckSudoku()) {
                                 gameOver = true;
                             }
+                        }
+                        // 检测 Delete 键或 Backspace 键
+                        else if (c == '\b' || c == '\u007F') // '\b' 是 Backspace，'\u007F' 是 Delete
+                        {
+                            // 清除选中的格子
+                            sudokuBoard[selectedRow, selectedCol, 0] = 0; // 清除数字
+                            selectedRow = -1; // 重置选中的行
+                            selectedCol = -1; // 重置选中的列
+                            waitingForInput = false; // 重置等待键盘输入状态
                         }
                     }
                 }
@@ -119,7 +133,7 @@ public class SudokuGame : MonoBehaviour {
 
     // 初始化游戏
     void Init() {
-        sudokuBoard = new int[9, 9]; // 初始化数独棋盘
+        sudokuBoard = new int[9, 9, 2]; // 初始化数独棋盘
         gameOver = false; // 重置游戏结束状态
         GenerateSudoku(difficulty); // 生成数独
     }
@@ -129,7 +143,8 @@ public class SudokuGame : MonoBehaviour {
         // 清空棋盘
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
-                sudokuBoard[i, j] = 0;
+                sudokuBoard[i, j, 0] = 0;
+                sudokuBoard[i, j, 1] = 0;
             }
         }
 
@@ -154,19 +169,21 @@ public class SudokuGame : MonoBehaviour {
     }
 
     // 递归填充数独棋盘
-    bool FillBoard(int[,] board) {
+    bool FillBoard(int[,,] board) {
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
-                if (board[i, j] == 0) {
+                if (board[i, j, 0] == 0) {
                     List<int> possibleNumbers = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
                     Shuffle(possibleNumbers); // 随机打乱数字列表
                     foreach (int num in possibleNumbers) {
                         if (IsValid(board, i, j, num)) {
-                            board[i, j] = num; // 填入数字
+                            board[i, j, 0] = num; // 填入数字
+                            board[i, j, 1] = 1; // 标记为初始数字
                             if (FillBoard(board)) {
                                 return true; // 如果成功填充，返回true
                             }
-                            board[i, j] = 0; // 回溯
+                            board[i, j, 0] = 0; // 回溯
+                            board[i, j, 1] = 0;
                         }
                     }
                     return false; // 如果没有数字可以填入，返回false
@@ -177,10 +194,10 @@ public class SudokuGame : MonoBehaviour {
     }
 
     // 检查数字是否有效
-    bool IsValid(int[,] board, int row, int col, int num) {
+    bool IsValid(int[,,] board, int row, int col, int num) {
         for (int i = 0; i < 9; i++) {
             // 检查行、列和3x3子区域是否有重复数字
-            if (board[row, i] == num || board[i, col] == num || board[row / 3 * 3 + i / 3, col / 3 * 3 + i % 3] == num) {
+            if (board[row, i, 0] == num || board[i, col, 0] == num || board[row / 3 * 3 + i / 3, col / 3 * 3 + i % 3, 0] == num) {
                 return false; // 如果有重复数字，返回false
             }
         }
@@ -198,12 +215,13 @@ public class SudokuGame : MonoBehaviour {
     }
 
     // 移除数字
-    void RemoveNumbers(int[,] board, int count) {
+    void RemoveNumbers(int[,,] board, int count) {
         while (count > 0) {
             int row = Random.Range(0, 9);
             int col = Random.Range(0, 9);
-            if (board[row, col] != 0) {
-                board[row, col] = 0; // 移除数字
+            if (board[row, col, 0] != 0) {
+                board[row, col, 0] = 0; // 移除数字
+                board[row, col, 1] = 0; // 标记为非初始数字
                 count--;
             }
         }
@@ -213,7 +231,7 @@ public class SudokuGame : MonoBehaviour {
     bool CheckSudoku() {
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
-                if (sudokuBoard[i, j] == 0) {
+                if (sudokuBoard[i, j, 0] == 0) {
                     return false; // 如果有空格，返回false
                 }
             }
@@ -232,7 +250,7 @@ public class SudokuGame : MonoBehaviour {
     bool CheckRow(int row) {
         bool[] used = new bool[9];
         for (int col = 0; col < 9; col++) {
-            int num = sudokuBoard[row, col];
+            int num = sudokuBoard[row, col, 0];
             if (num < 1 || num > 9 || used[num - 1]) {
                 return false;
             }
@@ -244,7 +262,7 @@ public class SudokuGame : MonoBehaviour {
     bool CheckColumn(int col) {
         bool[] used = new bool[9];
         for (int row = 0; row < 9; row++) {
-            int num = sudokuBoard[row, col];
+            int num = sudokuBoard[row, col, 0];
             if (num < 1 || num > 9 || used[num - 1]) {
                 return false;
             }
@@ -259,7 +277,7 @@ public class SudokuGame : MonoBehaviour {
         int startCol = (subGridIndex % 3) * 3;
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
-                int num = sudokuBoard[startRow + i, startCol + j];
+                int num = sudokuBoard[startRow + i, startCol + j, 0];
                 if (num < 1 || num > 9 || used[num - 1]) {
                     return false;
                 }
